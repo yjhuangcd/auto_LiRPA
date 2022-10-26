@@ -7,7 +7,6 @@ class BoundSoftmaxImpl(nn.Module):
         self.axis = axis
         assert self.axis == int(self.axis)
 
-    @Bound.save_io_shape
     def forward(self, x):
         max_x = torch.max(x, dim=self.axis).values
         x = torch.exp(x - max_x.unsqueeze(self.axis))
@@ -16,8 +15,8 @@ class BoundSoftmaxImpl(nn.Module):
 
 # The `option != 'complex'` case is not used in the auto_LiRPA main paper.
 class BoundSoftmax(Bound):
-    def __init__(self, input_name, name, ori_name, attr, inputs, output_index, options, device):
-        super().__init__(input_name, name, ori_name, attr, inputs, output_index, options, device)
+    def __init__(self, attr, inputs, output_index, options):
+        super().__init__(attr, inputs, output_index, options)
         self.axis = attr['axis']
         self.option = options.get('softmax', 'complex')
         if self.option == 'complex':
@@ -25,7 +24,6 @@ class BoundSoftmax(Bound):
         else:
             self.max_input = 30
 
-    @Bound.save_io_shape
     def forward(self, x):
         assert self.axis == int(self.axis)
         if self.option == 'complex':
@@ -44,8 +42,4 @@ class BoundSoftmax(Bound):
         exp_L, exp_U = torch.exp(h_L - shift), torch.exp(h_U - shift)
         lower = exp_L / (torch.sum(exp_U, dim=self.axis, keepdim=True) - exp_U + exp_L + epsilon)
         upper = exp_U / (torch.sum(exp_L, dim=self.axis, keepdim=True) - exp_L + exp_U + epsilon)
-        return lower, upper  
-
-    def infer_batch_dim(self, batch_size, *x):
-        assert self.axis != x[0]
-        return x[0]
+        return lower, upper
